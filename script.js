@@ -18,6 +18,9 @@ const elReset = document.getElementById("reinitialiser");
 const elAppliquer = document.getElementById("appliquer");
 const elNbFiltres = document.getElementById("nb-filtres");
 const elFiltres = document.getElementById("filtres-dialog");
+const elChipFavoris = document.getElementById("chip-favoris");
+const elNbFavoris = document.getElementById("nb-favoris");
+const elToutVoir = document.getElementById("tout-voir");
 
 let textes = [];
 let premierAffichage = true;
@@ -32,6 +35,25 @@ const ecrireMemoire = (cle, valeur) => { try { localStorage.setItem(cle, valeur)
 const oublierMemoire = (cle) => { try { localStorage.removeItem(cle); } catch {} };
 const codeEnregistre = () => lireMemoire(CLE_CODE);
 const catalogueProtege = () => Boolean(CONFIG.CODE_REQUIS);
+
+// Préférences de l'appareil : dernière échéance choisie, tri, textes gardés dans « Mon répertoire ».
+const CLE_ECHEANCE = "la-truculance-echeance";
+const CLE_TRI = "la-truculance-tri";
+const CLE_FAVORIS = "la-truculance-favoris";
+
+const OPTIONS_TRI = [["recents", "Récents"], ["duree", "Durée"], ["az", "A → Z"]];
+let tri = OPTIONS_TRI.some(([v]) => v === lireMemoire(CLE_TRI)) ? lireMemoire(CLE_TRI) : "recents";
+
+function lireFavoris() {
+  try {
+    const liste = JSON.parse(lireMemoire(CLE_FAVORIS) || "[]");
+    return new Set(Array.isArray(liste) ? liste.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+const favoris = lireFavoris();
+let soloFavoris = false; // true = on n'affiche que « Mon répertoire »
 
 class ErreurCode extends Error {}
 
@@ -56,6 +78,18 @@ function icone(nom) {
   use.setAttribute("href", `#i-${nom}`);
   svg.appendChild(use);
   return svg;
+}
+
+// Ouvre une feuille. Filet de sécurité : si l'animation d'entrée reste bloquée au départ (la feuille resterait
+// cachée sous l'écran, avec seulement le fond flouté visible), on la termine d'office.
+function ouvrirFeuille(dialogue) {
+  dialogue.showModal();
+  setTimeout(() => {
+    if (!dialogue.open || !dialogue.getAnimations) return;
+    for (const animation of dialogue.getAnimations()) {
+      try { animation.finish(); } catch {}
+    }
+  }, 700);
 }
 
 function fermerAuClicDehors(dialogue) {
@@ -107,8 +141,8 @@ function lireTextes(csv) {
   }
 
   return lignes
-    .map((l) => {
-      const t = {};
+    .map((l, i) => {
+      const t = { ordre: i }; // rang dans le Sheet : sert au tri « Récents »
       for (const champ of Object.keys(index)) {
         t[champ] = index[champ] >= 0 ? (l[index[champ]] ?? "").trim() : "";
       }
@@ -140,8 +174,58 @@ function valeursTriees(cle) {
 /* ---------- Filtres ---------- */
 
 function choisir(cle, valeur) {
-  filtres[cle] = filtres[cle] === valeur ? "" : valeur;
+  if (cle === "tri") {
+    tri = valeur;
+    ecrireMemoire(CLE_TRI, valeur);
+  } else {
+    filtres[cle] = filtres[cle] === valeur ? "" : valeur;
+    // On retient l'échéance : elle sera déjà choisie à la prochaine visite (et dans le formulaire « Proposer »).
+    if (cle === "echeance") ecrireMemoire(CLE_ECHEANCE, filtres[cle]);
+  }
   afficher();
+}
+
+function trier(liste) {
+  const copie = [...liste];
+  const parTitre = (a, b) => a.titre.localeCompare(b.titre, "fr", { sensitivity: "base" });
+  if (tri === "az") return copie.sort(parTitre);
+  if (tri === "duree") {
+    const minutes = (t) => {
+      const n = parseFloat(String(t.duree).replace(",", "."));
+      return Number.isNaN(n) ? Infinity : n; // les textes sans durée vont à la fin
+    };
+    return copie.sort((a, b) => minutes(a) - minutes(b) || parTitre(a, b));
+  }
+  return copie.sort((a, b) => b.ordre - a.ordre); // récents : les dernières lignes du Sheet d'abord
+}
+
+/* ---------- Mon répertoire ---------- */
+
+const cleTexte = (t) => normaliser(`${t.titre}|${t.auteur}|${t.personnages}`);
+const nbFavoris = () => textes.filter((t) => favoris.has(cleTexte(t))).length;
+
+function majChipFavoris() {
+  const n = nbFavoris();
+  elNbFavoris.textContent = n;
+  elNbFavoris.hidden = n === 0;
+  elChipFavoris.classList.toggle("actif", soloFavoris);
+  elChipFavoris.setAttribute("aria-pressed", String(soloFavoris));
+}
+
+function basculerFavori(t, majBouton) {
+  const cle = cleTexte(t);
+  if (favoris.has(cle)) favoris.delete(cle);
+  else favoris.add(cle);
+  ecrireMemoire(CLE_FAVORIS, JSON.stringify([...favoris]));
+  majBouton();
+  if (soloFavoris) {
+    // La carte doit disparaître de la liste ; on garde la position de défilement.
+    const y = scrollY;
+    afficher();
+    scrollTo(0, y);
+  } else {
+    majChipFavoris();
+  }
 }
 
 function creerPuce(cle, valeur, libelle) {
@@ -154,8 +238,14 @@ function creerPuce(cle, valeur, libelle) {
 
 function creerGroupes() {
   elGroupes.replaceChildren();
-  elRapide.querySelectorAll(".chip:not(.chip-filtres)").forEach((c) => c.remove());
+  elRapide.querySelectorAll(".chip:not(.chip-filtres):not(.chip-fixe)").forEach((c) => c.remove());
   for (const cle of Object.keys(puces)) delete puces[cle];
+
+  const groupeTri = el("div", "groupe");
+  const chipsTri = el("div", "chips");
+  for (const [valeur, libelle] of OPTIONS_TRI) chipsTri.appendChild(creerPuce("tri", valeur, libelle));
+  groupeTri.append(el("h3", "", "Trier par"), chipsTri);
+  elGroupes.appendChild(groupeTri);
 
   const groupes = [];
   for (const { cle, titre } of GROUPES) {
@@ -179,9 +269,14 @@ function creerGroupes() {
       }
     }
   }
+
+  // Retour de l'élève : on rouvre directement sur son échéance (bouton « Tout voir » pour l'enlever).
+  const derniere = lireMemoire(CLE_ECHEANCE);
+  if ("echeance" in filtres && derniere && valeursTriees("echeance").includes(derniere)) filtres.echeance = derniere;
 }
 
 function reinitialiser() {
+  soloFavoris = false;
   elRecherche.value = "";
   for (const cle of Object.keys(filtres)) filtres[cle] = "";
   afficher();
@@ -241,6 +336,19 @@ function creerCarte(t, i) {
   } else {
     pied.appendChild(el("span", "indispo", "PDF non disponible"));
   }
+
+  const fav = el("button", "fav");
+  fav.type = "button";
+  fav.setAttribute("aria-label", "Garder dans mon répertoire");
+  fav.appendChild(icone("coeur"));
+  const majFav = () => {
+    const actif = favoris.has(cleTexte(t));
+    fav.classList.toggle("actif", actif);
+    fav.setAttribute("aria-pressed", String(actif));
+  };
+  majFav();
+  fav.addEventListener("click", () => basculerFavori(t, majFav));
+  pied.appendChild(fav);
   carte.appendChild(pied);
 
   if (t.prenom) carte.appendChild(el("p", "prenom", `Proposé par ${t.prenom}`));
@@ -248,10 +356,19 @@ function creerCarte(t, i) {
 }
 
 function correspond(t) {
-  return Object.entries(filtres).every(([cle, v]) => !v || t[cle] === v);
+  return (!soloFavoris || favoris.has(cleTexte(t))) && Object.entries(filtres).every(([cle, v]) => !v || t[cle] === v);
 }
 
 function etatVide() {
+  if (soloFavoris && nbFavoris() === 0) {
+    const bloc = el("div", "vide");
+    bloc.append(el("strong", "", "Ton répertoire est vide."), el("p", "", "Touche le cœur sur un texte pour le garder ici."));
+    const b = el("button", "secondaire", "Voir tous les textes");
+    b.type = "button";
+    b.addEventListener("click", () => { soloFavoris = false; afficher(); });
+    bloc.appendChild(b);
+    return bloc;
+  }
   const bloc = el("div", "vide");
   bloc.append(el("strong", "", "Rien ne correspond."), el("p", "", "Essaie avec moins de filtres ou un autre mot."));
   const b = el("button", "secondaire", "Réinitialiser");
@@ -264,7 +381,7 @@ function etatVide() {
 function majInterface(nombre, recherche) {
   for (const [cle, liste] of Object.entries(puces)) {
     for (const { valeur, bouton } of liste) {
-      const actif = filtres[cle] === valeur;
+      const actif = (cle === "tri" ? tri : filtres[cle]) === valeur;
       bouton.classList.toggle("actif", actif);
       bouton.setAttribute("aria-pressed", String(actif));
     }
@@ -273,15 +390,18 @@ function majInterface(nombre, recherche) {
   const actifs = Object.values(filtres).filter(Boolean).length;
   elNbFiltres.textContent = actifs;
   elNbFiltres.hidden = actifs === 0;
-  elReset.disabled = !(actifs || recherche);
+  elReset.disabled = !(actifs || recherche || soloFavoris);
+  elToutVoir.hidden = !filtres.echeance;
+  elToutVoir.textContent = `${filtres.echeance || ""} · Tout voir`;
+  majChipFavoris();
   elAppliquer.textContent = nombre ? `Voir ${nombre} texte${nombre > 1 ? "s" : ""}` : "Aucun texte";
 }
 
 function afficher() {
   const q = normaliser(elRecherche.value);
-  const resultats = textes.filter(
+  const resultats = trier(textes.filter(
     (t) => correspond(t) && normaliser(`${t.titre} ${t.auteur} ${t.personnages}`).includes(q)
-  );
+  ));
 
   elListe.replaceChildren(...(resultats.length ? resultats.map(creerCarte) : [etatVide()]));
   elCompteur.textContent = resultats.length ? `${resultats.length} texte${resultats.length > 1 ? "s" : ""}` : "";
@@ -333,8 +453,10 @@ majColle();
 
 elRecherche.addEventListener("input", afficher);
 elReset.addEventListener("click", reinitialiser);
+elChipFavoris.addEventListener("click", () => { soloFavoris = !soloFavoris; afficher(); });
+elToutVoir.addEventListener("click", () => choisir("echeance", filtres.echeance));
 
-document.getElementById("ouvrir-filtres").addEventListener("click", () => elFiltres.showModal());
+document.getElementById("ouvrir-filtres").addEventListener("click", () => ouvrirFeuille(elFiltres));
 document.getElementById("fermer-filtres").addEventListener("click", () => elFiltres.close());
 elAppliquer.addEventListener("click", () => elFiltres.close());
 fermerAuClicDehors(elFiltres);

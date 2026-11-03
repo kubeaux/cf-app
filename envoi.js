@@ -1,5 +1,4 @@
 const TAILLE_MAX_PDF = 5 * 1024 * 1024;
-const CLE_ECHEANCE = "la-truculance-echeance";
 
 const elDialogue = document.getElementById("dialogue");
 const elForm = document.getElementById("formulaire");
@@ -161,7 +160,7 @@ function ouvrirFormulaire() {
   code.closest("label").hidden = Boolean(codeEnregistre());
   const echeance = elForm.elements.echeance;
   if (!echeance.value && [...echeance.options].some((o) => o.value === lireMemoire(CLE_ECHEANCE))) echeance.value = lireMemoire(CLE_ECHEANCE);
-  elDialogue.showModal();
+  ouvrirFeuille(elDialogue);
 }
 
 remplirSelects();

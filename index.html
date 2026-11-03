@@ -31,6 +31,7 @@
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M5 8h14M5 12h14M5 16h9"/></symbol>
     <symbol id="i-partager" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M7 10H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></symbol>
     <symbol id="i-ecran" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+    <symbol id="i-coeur" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
     <symbol id="i-points" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="18.5" r="1.2"/></symbol>
   </svg>
 
@@ -59,10 +60,18 @@
           <span>Filtres</span>
           <b id="nb-filtres" hidden>0</b>
         </button>
+        <button id="chip-favoris" class="chip chip-fixe" type="button" aria-pressed="false">
+          <svg class="ico" aria-hidden="true"><use href="#i-coeur"/></svg>
+          <span>Mon répertoire</span>
+          <b id="nb-favoris" hidden>0</b>
+        </button>
       </div>
     </div>
 
-    <p id="compteur" aria-live="polite"></p>
+    <div class="ligne-compteur">
+      <p id="compteur" aria-live="polite"></p>
+      <button id="tout-voir" class="lien" type="button" hidden></button>
+    </div>
     <section id="liste" class="liste"></section>
 
     <footer class="pied">
@@ -74,6 +83,12 @@
   <button id="proposer" class="proposer" type="button" hidden>
     <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span>Proposer un texte</span>
   </button>
+
+  <!-- Nouvelle version -->
+  <div id="maj" class="maj" role="status" hidden>
+    <span>Nouvelle version disponible</span>
+    <button id="maj-action" type="button">Mettre à jour</button>
+  </div>
 
   <!-- Filtres -->
   <dialog id="filtres-dialog" class="feuille" aria-labelledby="filtres-titre">

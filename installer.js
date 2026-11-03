@@ -71,7 +71,7 @@
 
   function ouvrir() {
     remplir();
-    if (!dialogue.open) dialogue.showModal();
+    if (!dialogue.open) ouvrirFeuille(dialogue);
   }
 
   function majLien() {
@@ -113,6 +113,7 @@
       if (!document.querySelector("dialog[open]")) ouvrir();
     }, 1200);
   }
-  if (elIdentite.open) elIdentite.addEventListener("close", planifier, { once: true });
+  // La fenêtre d'entrée s'ouvre un peu plus tard (après le chargement) : on l'attend aussi.
+  if (elIdentite.open || accesRequis()) elIdentite.addEventListener("close", planifier, { once: true });
   else planifier();
 })();

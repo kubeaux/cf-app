@@ -31,7 +31,7 @@ function ouvrirAcces(erreur = "") {
   elCodeAcces.required = catalogueProtege() && !codeEnregistre(); // un code déjà enregistré se garde si on laisse vide
   elCodeAcces.placeholder = codeEnregistre() ? "Laisse vide pour garder le même" : "";
   elAccesErreur.textContent = erreur;
-  if (!elIdentite.open) elIdentite.showModal();
+  if (!elIdentite.open) ouvrirFeuille(elIdentite);
 }
 
 elFormIdentite.addEventListener("submit", (e) => {
@@ -52,5 +52,13 @@ elFormIdentite.addEventListener("submit", (e) => {
 
 elNomUtilisateur.addEventListener("click", () => ouvrirAcces());
 
+const accesRequis = () => !prenomEnregistre() || (catalogueProtege() && !codeEnregistre());
+
 afficherNom();
-if (!prenomEnregistre() || (catalogueProtege() && !codeEnregistre())) ouvrirAcces();
+if (accesRequis()) {
+  // Sur iPhone, une fenêtre ouverte pendant le chargement pouvait rester invisible (seul le fond flouté apparaissait).
+  // On attend donc que la page soit chargée et peinte.
+  const ouvrir = () => requestAnimationFrame(() => requestAnimationFrame(() => ouvrirAcces()));
+  if (document.readyState === "complete") ouvrir();
+  else addEventListener("load", ouvrir, { once: true });
+}

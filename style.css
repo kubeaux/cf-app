@@ -249,8 +249,9 @@ main {
   background: var(--texte);
   color: #17120e;
 }
-.chip-filtres .ico { width: 18px; height: 18px; }
-.chip-filtres b {
+.chip-filtres .ico, .chip-fixe .ico { width: 18px; height: 18px; }
+.chip-fixe.actif .ico { fill: currentColor; }
+.chip-filtres b, .chip-fixe b {
   display: grid;
   place-items: center;
   min-width: 20px;
@@ -263,8 +264,17 @@ main {
   font-weight: 700;
 }
 
-#compteur {
+.ligne-compteur {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin: 20px 4px 12px;
+}
+.ligne-compteur .lien { padding: 4px 0; font-size: .78rem; }
+
+#compteur {
+  margin: 0;
   color: var(--doux);
   font-size: .74rem;
   font-weight: 600;
@@ -362,6 +372,23 @@ main {
   transition: transform .15s;
 }
 .lire:active { transform: scale(.97); }
+.fav {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 1px solid var(--ligne-forte);
+  border-radius: 50%;
+  background: none;
+  color: var(--doux);
+  transition: transform .15s, color .15s, background .15s;
+}
+.fav:active { transform: scale(.92); }
+.fav.actif { border-color: transparent; background: rgba(255, 90, 44, .16); color: var(--accent); }
+.fav.actif .ico { fill: currentColor; animation: pop .3s cubic-bezier(.2, .9, .3, 1.4); }
+
 .indispo {
   display: flex;
   flex: 1;
@@ -442,10 +469,10 @@ dialog::backdrop {
 dialog.feuille {
   width: min(100%, 600px);
   max-width: 100%;
+  max-height: 92vh;
   max-height: min(92dvh, 880px);
   margin: auto auto 0;
   padding: 0;
-  overflow: hidden;
   border: 0;
   border-top: 1px solid var(--ligne-forte);
   border-radius: 32px 32px 0 0;
@@ -617,6 +644,7 @@ button:disabled { opacity: .5; }
 @keyframes monte { from { opacity: 0; transform: translateY(18px); } }
 @keyframes glisse { from { transform: translateY(100%); } }
 @keyframes fondu { from { opacity: 0; } }
+@keyframes pop { 50% { transform: scale(1.3); } }
 @keyframes reflet { to { background-position: -150% 0; } }
 
 @media (hover: hover) {
@@ -631,6 +659,7 @@ button:disabled { opacity: .5; }
 /* Écrans larges : la feuille devient une fenêtre centrée. */
 @media (min-width: 700px) {
   dialog.feuille { margin: auto; border-radius: 32px; border: 1px solid var(--ligne-forte); }
+  .feuille-pied { border-radius: 0 0 31px 31px; }
 }
 
 /* Remplissage automatique à partir du PDF */
@@ -646,6 +675,36 @@ button:disabled { opacity: .5; }
 .auto-info:empty { display: none; }
 .auto-info.erreur { color: var(--erreur); }
 .champ input.auto, .champ select.auto { border-color: rgba(255, 90, 44, .6); }
+
+/* Bandeau « Nouvelle version », au-dessus du bouton Proposer */
+.maj {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 8px 8px 8px 20px;
+  border: 1px solid var(--ligne-forte);
+  border-radius: 999px;
+  background: var(--surface-3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  font-size: .9rem;
+  transform: translateX(-50%);
+  animation: fondu .4s both;
+}
+.maj button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--texte);
+  color: #17120e;
+  font-weight: 600;
+}
 
 .sprite { position: absolute; width: 0; height: 0; }
 .acces-erreur { min-height: 0; margin: -4px 0 14px; color: var(--erreur); font-size: .9rem; font-weight: 500; }
