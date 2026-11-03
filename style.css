@@ -484,7 +484,7 @@ dialog.feuille[open] {
   flex-direction: column;
   animation: glisse .4s cubic-bezier(.2, .9, .25, 1);
 }
-dialog.feuille form { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+dialog.feuille form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
 
 .feuille-tete {
   display: flex;
