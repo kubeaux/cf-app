@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>La Truculance · Admin</title>
+  <meta name="theme-color" content="#0f0e0d">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <symbol id="i-fermer" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-partager" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M7 10H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></symbol>
+    <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M7 17L17 7M8.5 7H17v8.5"/></symbol>
+  </svg>
+
+  <header class="haut">
+    <a class="logo" href="./" aria-label="La Truculance, retour au catalogue">
+      <img src="favicon.svg" alt="" width="34" height="34">
+      <span><i>La</i> Truculance<b>.</b></span>
+    </a>
+    <button id="deconnexion" class="lien" type="button" hidden>Se déconnecter</button>
+  </header>
+
+  <main class="admin-main">
+    <section class="hero">
+      <p class="kicker">Admin</p>
+      <h1 id="titre-page">Garde la <em>main.</em></h1>
+    </section>
+
+    <!-- Connexion -->
+    <form id="connexion" class="admin-connexion" autocomplete="off">
+      <label class="champ">Code admin
+        <input id="code-admin" type="password" required autocapitalize="off" spellcheck="false" autocomplete="off" enterkeyhint="go">
+      </label>
+      <p id="connexion-erreur" class="admin-erreur" role="alert"></p>
+      <button type="submit" class="principal">Entrer</button>
+      <p class="droits">Ce code est différent de celui de la classe. Il reste gardé sur cet appareil jusqu’à la déconnexion.</p>
+    </form>
+
+    <!-- Tableau de bord -->
+    <section id="tableau" hidden>
+      <div id="auto-carte" class="auto-carte">
+        <div>
+          <h2>Autopilote</h2>
+          <p id="auto-texte"></p>
+        </div>
+        <button id="auto-interrupteur" class="interrupteur" type="button" role="switch" aria-checked="false" aria-label="Autopilote"></button>
+      </div>
+
+      <div id="onglets" class="admin-onglets" role="tablist"></div>
+      <div class="admin-barre">
+        <p id="compteur" aria-live="polite"></p>
+        <button id="actualiser" class="lien" type="button">Actualiser</button>
+      </div>
+      <p id="info" class="admin-info" role="status" hidden></p>
+      <section id="liste" class="liste"></section>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="lecteur.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

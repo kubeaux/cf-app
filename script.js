@@ -344,6 +344,14 @@ function creerCarte(t, i) {
     a.target = "_blank";
     a.rel = "noopener";
     a.append("Lire le texte", icone("fleche"));
+    // Un PDF du site ou de notre Drive s'ouvre dans l'appli (lecteur.js). Le lien reste là en secours.
+    const source = Lecteur.sourcePdf(href);
+    if (source && (source.type === "local" || catalogueProtege())) {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        Lecteur.ouvrir({ titre: t.titre, lien: href, code: codeEnregistre() });
+      });
+    }
     pied.appendChild(a);
   } else {
     pied.appendChild(el("span", "indispo", "PDF non disponible"));
