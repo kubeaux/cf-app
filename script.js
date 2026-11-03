@@ -80,15 +80,27 @@ function icone(nom) {
   return svg;
 }
 
-// Ouvre une feuille. Filet de sécurité : si l'animation d'entrée reste bloquée au départ (la feuille resterait
-// cachée sous l'écran, avec seulement le fond flouté visible), on la termine d'office.
+// Ouvre une feuille, avec deux filets de sécurité (la feuille resterait invisible, et le fond flouté bloquerait toute la page) :
+//  1. si l'animation d'entrée reste bloquée au départ, on la termine d'office ;
+//  2. si la feuille est ouverte mais invisible (masquée par un bloqueur de pop-ups, par exemple), on la referme.
+function feuilleVisible(dialogue) {
+  const style = getComputedStyle(dialogue);
+  const r = dialogue.getBoundingClientRect();
+  return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.05 && r.height > 40 && r.top < innerHeight - 40;
+}
+
 function ouvrirFeuille(dialogue) {
   dialogue.showModal();
   setTimeout(() => {
-    if (!dialogue.open || !dialogue.getAnimations) return;
-    for (const animation of dialogue.getAnimations()) {
-      try { animation.finish(); } catch {}
+    if (!dialogue.open) return;
+    if (dialogue.getAnimations) {
+      for (const animation of dialogue.getAnimations()) {
+        try { animation.finish(); } catch {}
+      }
     }
+    setTimeout(() => {
+      if (dialogue.open && !feuilleVisible(dialogue)) dialogue.close();
+    }, 200);
   }, 700);
 }
 
