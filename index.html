@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>La Truculance</title>
+  <meta name="description" content="La banque de textes de la classe : pièces, films, scènes. Cherche, filtre, lis.">
+  <meta name="theme-color" content="#0f0e0d">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Truculance">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preload" href="fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Icônes : on les appelle avec <svg class="ico"><use href="#i-nom"/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+    <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-fleche" viewBox="0 0 24 24"><path d="M7 17L17 7M8.5 7H17v8.5"/></symbol>
+    <symbol id="i-fermer" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M5 8h14M5 12h14M5 16h9"/></symbol>
+    <symbol id="i-partager" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M7 10H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></symbol>
+    <symbol id="i-ecran" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+    <symbol id="i-points" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="18.5" r="1.2"/></symbol>
+  </svg>
+
+  <header class="haut">
+    <a class="logo" href="./" aria-label="La Truculance, accueil">
+      <img src="favicon.svg" alt="" width="34" height="34">
+      <span><i>La</i> Truculance<b>.</b></span>
+    </a>
+    <button id="nom-utilisateur" class="avatar" type="button" hidden></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="kicker">La banque de textes de la classe</p>
+      <h1>Trouve ta prochaine <em>scène.</em></h1>
+    </section>
+
+    <div class="outils">
+      <label class="recherche">
+        <svg class="ico" aria-hidden="true"><use href="#i-loupe"/></svg>
+        <input id="recherche" type="search" placeholder="Titre, auteur, personnage…" aria-label="Rechercher un texte" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </label>
+      <div class="rapide" id="rapide">
+        <button id="ouvrir-filtres" class="chip chip-filtres" type="button">
+          <svg class="ico" aria-hidden="true"><use href="#i-reglages"/></svg>
+          <span>Filtres</span>
+          <b id="nb-filtres" hidden>0</b>
+        </button>
+      </div>
+    </div>
+
+    <p id="compteur" aria-live="polite"></p>
+    <section id="liste" class="liste"></section>
+
+    <footer class="pied">
+      <p>Textes du domaine public ou légalement diffusables uniquement.</p>
+      <button id="installer-lien" class="lien" type="button" hidden>Installer l’app sur ton écran d’accueil</button>
+    </footer>
+  </main>
+
+  <button id="proposer" class="proposer" type="button" hidden>
+    <svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span>Proposer un texte</span>
+  </button>
+
+  <!-- Filtres -->
+  <dialog id="filtres-dialog" class="feuille" aria-labelledby="filtres-titre">
+    <div class="feuille-tete">
+      <h2 id="filtres-titre">Filtres</h2>
+      <button id="fermer-filtres" class="fermer" type="button" aria-label="Fermer">
+        <svg class="ico" aria-hidden="true"><use href="#i-fermer"/></svg>
+      </button>
+    </div>
+    <div class="feuille-corps" id="groupes"></div>
+    <div class="feuille-pied pied-filtres">
+      <button id="reinitialiser" class="secondaire" type="button">Réinitialiser</button>
+      <button id="appliquer" class="principal" type="button">Voir les textes</button>
+    </div>
+  </dialog>
+
+  <!-- Prénom (première visite) -->
+  <dialog id="identite" class="feuille" aria-labelledby="identite-titre">
+    <form id="form-identite" method="dialog">
+      <div class="feuille-corps">
+        <p class="kicker">Bienvenue</p>
+        <h2 id="identite-titre" class="grand-titre">Comment tu t’appelles&nbsp;?</h2>
+        <label class="champ">Ton prénom
+          <input id="pseudo" required maxlength="40" autocomplete="given-name" enterkeyhint="done">
+        </label>
+        <p class="droits">Ton prénom sert uniquement à savoir qui a proposé un texte. Il reste gardé sur cet appareil.</p>
+      </div>
+      <div class="feuille-pied">
+        <button type="submit" class="principal plein">Continuer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Proposer un texte -->
+  <dialog id="dialogue" class="feuille" aria-labelledby="proposer-titre">
+    <form id="formulaire" autocomplete="off">
+      <div class="feuille-tete">
+        <h2 id="proposer-titre">Proposer un texte</h2>
+      </div>
+      <div class="feuille-corps">
+        <label class="champ champ-pdf">Ton PDF (5 Mo max) — je remplis le reste pour toi
+          <input name="pdf" type="file" accept="application/pdf">
+        </label>
+        <p id="auto-info" class="auto-info" role="status"></p>
+        <label class="champ">Ou lien vers le texte <input name="lien" type="url" maxlength="500" placeholder="https://"></label>
+
+        <label class="champ">Format <select name="format" id="f-format" required></select></label>
+        <label class="champ">Titre <input name="titre" required maxlength="150"></label>
+        <label class="champ">Auteur·ice (ou réalisateur·ice) <input name="auteur" required maxlength="100"></label>
+        <label class="champ">Personnage(s) <input name="personnages" required maxlength="150"></label>
+        <div class="grille2">
+          <label class="champ">Échéance <select name="echeance" id="f-echeance" required></select></label>
+          <label class="champ">Type de scène <select name="type" id="f-type" required></select></label>
+          <label class="champ">Siècle <select name="siecle" id="f-siecle" required></select></label>
+          <label class="champ">Registre <select name="registre" id="f-registre" required></select></label>
+        </div>
+        <label class="champ">Durée approximative (minutes) <input name="duree" type="number" inputmode="numeric" min="1" max="60" required></label>
+        <label class="champ">Prénom <input name="prenom" required maxlength="40"></label>
+        <label class="champ">Code de la classe <input name="code" required maxlength="60" autocapitalize="off"></label>
+        <input class="piege" name="site" tabindex="-1" aria-hidden="true">
+        <p class="droits">Le texte doit être du domaine public ou légalement diffusable. Il apparaîtra sur le site après validation.</p>
+      </div>
+      <div class="feuille-pied">
+        <p id="statut" role="status"></p>
+        <div class="actions">
+          <button type="button" id="annuler" class="secondaire">Annuler</button>
+          <button type="submit" id="envoyer" class="principal">Envoyer</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Installer l'app -->
+  <dialog id="installer" class="feuille" aria-labelledby="installer-titre">
+    <div class="feuille-tete">
+      <div class="installer-icone"><img src="icon-192.png" alt="" width="48" height="48"></div>
+      <button id="fermer-installer" class="fermer" type="button" aria-label="Fermer">
+        <svg class="ico" aria-hidden="true"><use href="#i-fermer"/></svg>
+      </button>
+    </div>
+    <div class="feuille-corps">
+      <p class="kicker">Application</p>
+      <h2 id="installer-titre" class="grand-titre">Installe La&nbsp;Truculance</h2>
+      <p class="installer-texte">Ajoute le site à ton écran d’accueil : il s’ouvre en plein écran comme une vraie app, et le catalogue reste accessible même sans connexion.</p>
+      <ol id="installer-etapes" class="etapes"></ol>
+      <p id="installer-note" class="droits"></p>
+    </div>
+    <div class="feuille-pied">
+      <button id="installer-action" class="principal plein" type="button" hidden>Installer l’application</button>
+      <button id="installer-plus-tard" class="secondaire plein" type="button">Plus tard</button>
+    </div>
+  </dialog>
+
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+  <script src="extraction.js"></script>
+  <script src="envoi.js"></script>
+  <script src="identite.js"></script>
+  <script src="installer.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+  </script>
+</body>
+</html>
