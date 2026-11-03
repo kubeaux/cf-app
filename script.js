@@ -24,6 +24,17 @@ let premierAffichage = true;
 const filtres = {};
 const puces = {}; // clé du groupe -> [{ valeur, bouton }]
 
+// Mémoire de l'appareil (jamais sur un serveur). Les accès au stockage peuvent échouer en navigation privée.
+const CLE_CODE = "la-truculance-code";
+const CLE_CATALOGUE = "la-truculance-catalogue";
+const lireMemoire = (cle) => { try { return localStorage.getItem(cle) || ""; } catch { return ""; } };
+const ecrireMemoire = (cle, valeur) => { try { localStorage.setItem(cle, valeur); } catch {} };
+const oublierMemoire = (cle) => { try { localStorage.removeItem(cle); } catch {} };
+const codeEnregistre = () => lireMemoire(CLE_CODE);
+const catalogueProtege = () => Boolean(CONFIG.CODE_REQUIS);
+
+class ErreurCode extends Error {}
+
 const normaliser = (s) =>
   String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
@@ -290,13 +301,13 @@ function squelette() {
   elCompteur.textContent = "";
 }
 
-function message(titre, texte, reessayer = false) {
+function message(titre, texte, action) {
   const bloc = el("div", "vide");
   bloc.append(el("strong", "", titre), el("p", "", texte));
-  if (reessayer) {
-    const b = el("button", "secondaire", "Réessayer");
+  if (action) {
+    const b = el("button", "secondaire", action.libelle);
     b.type = "button";
-    b.addEventListener("click", demarrer);
+    b.addEventListener("click", action.fn);
     bloc.appendChild(b);
   }
   elListe.replaceChildren(bloc);
@@ -328,20 +339,56 @@ document.getElementById("fermer-filtres").addEventListener("click", () => elFilt
 elAppliquer.addEventListener("click", () => elFiltres.close());
 fermerAuClicDehors(elFiltres);
 
+// Renvoie le texte CSV du catalogue.
+// Protégé : le code part dans le corps d'un POST (jamais dans l'adresse) et c'est le serveur qui le vérifie.
+async function chargerCsv() {
+  if (!catalogueProtege()) {
+    const reponse = await fetch(CONFIG.LIEN_CSV);
+    if (!reponse.ok) throw new Error(reponse.status);
+    return reponse.text();
+  }
+  const reponse = await fetch(CONFIG.LIEN_CSV, { method: "POST", body: JSON.stringify({ action: "lire", code: codeEnregistre() }) });
+  const resultat = await reponse.json();
+  if (resultat.ok) {
+    ecrireMemoire(CLE_CATALOGUE, resultat.csv); // copie pour le hors-ligne
+    return resultat.csv;
+  }
+  if (resultat.code) throw new ErreurCode(resultat.erreur);
+  throw new Error(resultat.erreur || "Réponse inattendue");
+}
+
 async function demarrer() {
   if (!CONFIG.LIEN_CSV) {
     message("Bientôt !", "Le catalogue n’est pas encore disponible.");
     return;
   }
-  squelette();
-  try {
-    const reponse = await fetch(CONFIG.LIEN_CSV);
-    if (!reponse.ok) throw new Error(reponse.status);
-    textes = lireTextes(await reponse.text());
-  } catch {
-    message("Oups.", "Impossible de charger les textes. Vérifie ta connexion.", true);
+  if (catalogueProtege() && !codeEnregistre()) {
+    message("Réservé à la classe.", "Entre le code de la classe pour voir les textes.", { libelle: "Entrer le code", fn: () => ouvrirAcces() });
     return;
   }
+
+  squelette();
+  const reessayer = { libelle: "Réessayer", fn: demarrer };
+  let csv;
+  try {
+    csv = await chargerCsv();
+  } catch (erreur) {
+    if (erreur instanceof ErreurCode) {
+      oublierMemoire(CLE_CODE);
+      oublierMemoire(CLE_CATALOGUE);
+      message("Réservé à la classe.", "Entre le code de la classe pour voir les textes.", { libelle: "Entrer le code", fn: () => ouvrirAcces() });
+      ouvrirAcces(erreur.message);
+      return;
+    }
+    // Pas de connexion : on montre la dernière copie du catalogue si on en a une.
+    csv = catalogueProtege() ? lireMemoire(CLE_CATALOGUE) : "";
+    if (!csv) {
+      message("Oups.", "Impossible de charger les textes. Vérifie ta connexion.", reessayer);
+      return;
+    }
+  }
+
+  textes = lireTextes(csv);
   if (textes.length === 0) {
     message("C’est vide.", "Aucun texte pour l’instant. Sois le premier à en proposer un !");
     return;
@@ -349,5 +396,3 @@ async function demarrer() {
   creerGroupes();
   afficher();
 }
-
-demarrer();

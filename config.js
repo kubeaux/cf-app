@@ -5,6 +5,10 @@ const CONFIG = {
   //  - le lien d'un Google Sheet « publié sur le web » au format CSV (Fichier > Partager > Publier sur le web).
   LIEN_CSV: "https://script.google.com/macros/s/AKfycbxNFDALCAuvHkj4e5MM4B8zzcIwrQDLDJIf9_mCMg63lIzHsKxpCF_l3sJdW3O6dCYV/exec",
 
+  // true = le catalogue n'est donné qu'à ceux qui tapent le code de la classe (le code est vérifié par le Apps Script).
+  // Mets false seulement pour tester avec un fichier local (test.csv, textes.csv).
+  CODE_REQUIS: true,
+
   // Lien du Apps Script (méthode POST) pour recevoir les propositions depuis le site.
   LIEN_ENVOI: "https://script.google.com/macros/s/AKfycbxNFDALCAuvHkj4e5MM4B8zzcIwrQDLDJIf9_mCMg63lIzHsKxpCF_l3sJdW3O6dCYV/exec",
   // Repli sans Apps Script : lien d'un Google Form. Utilisé seulement si LIEN_ENVOI est vide.

@@ -646,3 +646,7 @@ button:disabled { opacity: .5; }
 .auto-info:empty { display: none; }
 .auto-info.erreur { color: var(--erreur); }
 .champ input.auto, .champ select.auto { border-color: rgba(255, 90, 44, .6); }
+
+.sprite { position: absolute; width: 0; height: 0; }
+.acces-erreur { min-height: 0; margin: -4px 0 14px; color: var(--erreur); font-size: .9rem; font-weight: 500; }
+.acces-erreur:empty { display: none; }

@@ -2,6 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>La Truculance</title>
   <meta name="description" content="La banque de textes de la classe : pièces, films, scènes. Cherche, filtre, lis.">
@@ -20,7 +22,7 @@
 </head>
 <body>
   <!-- Icônes : on les appelle avec <svg class="ico"><use href="#i-nom"/></svg> -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-loupe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
     <symbol id="i-reglages" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
@@ -88,16 +90,20 @@
     </div>
   </dialog>
 
-  <!-- Prénom (première visite) -->
+  <!-- Entrée : prénom + code de la classe -->
   <dialog id="identite" class="feuille" aria-labelledby="identite-titre">
     <form id="form-identite" method="dialog">
       <div class="feuille-corps">
         <p class="kicker">Bienvenue</p>
-        <h2 id="identite-titre" class="grand-titre">Comment tu t’appelles&nbsp;?</h2>
+        <h2 id="identite-titre" class="grand-titre">Entre dans la classe</h2>
         <label class="champ">Ton prénom
-          <input id="pseudo" required maxlength="40" autocomplete="given-name" enterkeyhint="done">
+          <input id="pseudo" required maxlength="40" autocomplete="given-name" enterkeyhint="next">
         </label>
-        <p class="droits">Ton prénom sert uniquement à savoir qui a proposé un texte. Il reste gardé sur cet appareil.</p>
+        <label class="champ">Code de la classe
+          <input id="code-acces" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+        </label>
+        <p id="acces-erreur" class="acces-erreur" role="alert"></p>
+        <p class="droits">Le code te donne accès aux textes de la classe : demande-le à la personne qui gère le site. Ton prénom indique qui a proposé un texte. Les deux restent gardés sur cet appareil.</p>
       </div>
       <div class="feuille-pied">
         <button type="submit" class="principal plein">Continuer</button>
@@ -171,8 +177,6 @@
   <script src="envoi.js"></script>
   <script src="identite.js"></script>
   <script src="installer.js"></script>
-  <script>
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-  </script>
+  <script src="demarrage.js"></script>
 </body>
 </html>

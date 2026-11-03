@@ -219,7 +219,7 @@ const PAGES_MAX = 40;
 async function lirePdf(fichier) {
   const pdfjs = await import("./vendor/pdf.min.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("vendor/pdf.worker.min.mjs", document.baseURI).href;
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()) }).promise;
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await fichier.arrayBuffer()), isEvalSupported: false }).promise;
   try {
     const info = (await doc.getMetadata().catch(() => null))?.info ?? {};
     const pages = Math.min(doc.numPages, PAGES_MAX);

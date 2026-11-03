@@ -1,5 +1,4 @@
 const TAILLE_MAX_PDF = 5 * 1024 * 1024;
-const CLE_CODE = "la-truculance-code";
 const CLE_ECHEANCE = "la-truculance-echeance";
 
 const elDialogue = document.getElementById("dialogue");
@@ -8,13 +7,6 @@ const elStatut = document.getElementById("statut");
 const elEnvoyer = document.getElementById("envoyer");
 const elBoutonProposer = document.getElementById("proposer");
 const elAutoInfo = document.getElementById("auto-info");
-
-function lireMemoire(cle) {
-  try { return localStorage.getItem(cle) || ""; } catch { return ""; }
-}
-function ecrireMemoire(cle, valeur) {
-  try { localStorage.setItem(cle, valeur); } catch {}
-}
 
 // Chaque liste commence par « Choisir… » : sans ça, un élève pressé enverrait la 1re valeur sans s'en rendre compte.
 function remplirSelects() {
@@ -163,8 +155,10 @@ async function envoyer(e) {
 function ouvrirFormulaire() {
   statut("");
   infoAuto("");
+  // Le code a déjà été tapé à l'entrée du site : on ne le redemande pas.
   const code = elForm.elements.code;
-  if (!code.value) code.value = lireMemoire(CLE_CODE);
+  if (!code.value) code.value = codeEnregistre();
+  code.closest("label").hidden = Boolean(codeEnregistre());
   const echeance = elForm.elements.echeance;
   if (!echeance.value && [...echeance.options].some((o) => o.value === lireMemoire(CLE_ECHEANCE))) echeance.value = lireMemoire(CLE_ECHEANCE);
   elDialogue.showModal();
