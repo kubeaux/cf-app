@@ -65,6 +65,11 @@
           <span>Mon répertoire</span>
           <b id="nb-favoris" hidden>0</b>
         </button>
+        <button id="chip-propositions" class="chip chip-fixe" type="button" hidden>
+          <svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg>
+          <span>Mes propositions</span>
+          <b id="nb-propositions" hidden>0</b>
+        </button>
       </div>
     </div>
 
@@ -102,6 +107,20 @@
     <div class="feuille-pied pied-filtres">
       <button id="reinitialiser" class="secondaire" type="button">Réinitialiser</button>
       <button id="appliquer" class="principal" type="button">Voir les textes</button>
+    </div>
+  </dialog>
+
+  <!-- Mes propositions -->
+  <dialog id="propositions-dialog" class="feuille" aria-labelledby="propositions-titre">
+    <div class="feuille-tete">
+      <h2 id="propositions-titre">Mes propositions</h2>
+      <button id="fermer-propositions" class="fermer" type="button" aria-label="Fermer">
+        <svg class="ico" aria-hidden="true"><use href="#i-fermer"/></svg>
+      </button>
+    </div>
+    <div class="feuille-corps">
+      <ul id="propositions-liste" class="propositions"></ul>
+      <p id="propositions-note" class="droits"></p>
     </div>
   </dialog>
 
@@ -190,6 +209,7 @@
   <script src="script.js"></script>
   <script src="extraction.js"></script>
   <script src="envoi.js"></script>
+  <script src="propositions.js"></script>
   <script src="identite.js"></script>
   <script src="lecteur.js"></script>
   <script src="installer.js"></script>

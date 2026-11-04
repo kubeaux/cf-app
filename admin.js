@@ -27,6 +27,7 @@
   let auto = false;
   let onglet = "attente";
   let chargement = 0;
+  let enEdition = null; // identifiant du texte en cours de modification (on ne rafraîchit pas la liste sous les doigts de l'admin)
 
   const lireCode = () => { try { return localStorage.getItem(CLE_ADMIN) || ""; } catch { return ""; } };
   const ecrireCode = (v) => { try { localStorage.setItem(CLE_ADMIN, v); } catch {} };
@@ -128,6 +129,7 @@
 
   async function actualiser() {
     info("");
+    enEdition = null;
     try {
       await recharger();
     } catch (e) {
@@ -137,7 +139,7 @@
   }
   document.getElementById("actualiser").addEventListener("click", actualiser);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && !elTableau.hidden) actualiser();
+    if (!document.hidden && !elTableau.hidden && !enEdition) actualiser();
   });
 
   /* ---------- Affichage ---------- */
@@ -145,6 +147,7 @@
   const nb = (statut) => textes.filter((t) => t.statut === statut).length;
 
   function afficher() {
+    enEdition = null; // tout nouvel affichage referme les formulaires de modification
     // Autopilote
     elAutoBouton.setAttribute("aria-checked", String(auto));
     elAutoCarte.classList.toggle("actif", auto);
@@ -213,7 +216,7 @@
     } else {
       actions.push(action(t, "Remettre en attente", "attente", "secondaire"));
     }
-    actions.push(suppression(t));
+    actions.push(boutonModifier(t, carte), suppression(t));
     pied.append(...actions);
     carte.appendChild(pied);
     return carte;
@@ -256,6 +259,108 @@
     b.type = "button";
     b.addEventListener("click", () => decider(t, decision, b.parentElement.querySelectorAll("button")));
     return b;
+  }
+
+  /* ---------- Modification ---------- */
+
+  const CHAMPS_LISTES = [
+    ["format", "Format", () => CONFIG.FORMATS],
+    ["echeance", "Échéance", () => CONFIG.ECHEANCES],
+    ["type", "Type de scène", () => CONFIG.TYPES],
+    ["siecle", "Siècle", () => CONFIG.SIECLES],
+    ["registre", "Registre", () => CONFIG.REGISTRES]
+  ];
+
+  function boutonModifier(t, carte) {
+    const b = el("button", "secondaire", "Modifier");
+    b.type = "button";
+    b.addEventListener("click", () => {
+      const ouvert = carte.querySelector(".edition");
+      if (ouvert) {
+        ouvert.remove();
+        enEdition = null;
+        return;
+      }
+      enEdition = t.id;
+      carte.appendChild(formulaireEdition(t));
+      carte.querySelector(".edition input")?.focus();
+    });
+    return b;
+  }
+
+  function champTexte(nom, libelle, valeur, max) {
+    const label = el("label", "champ", libelle);
+    const input = el("input");
+    input.name = nom;
+    input.value = valeur;
+    input.maxLength = max;
+    input.required = true;
+    label.appendChild(input);
+    return label;
+  }
+
+  function champListe(nom, libelle, valeurs, courante) {
+    const label = el("label", "champ", libelle);
+    const select = el("select");
+    select.name = nom;
+    select.required = true;
+    // Une ancienne valeur absente des listes (ajoutée à la main dans le Sheet) oblige à en choisir une valide.
+    if (!valeurs.includes(courante)) select.appendChild(new Option(courante ? `${courante} (à corriger)` : "Choisir…", "", true, true));
+    for (const v of valeurs) select.appendChild(new Option(v, v, false, v === courante));
+    label.appendChild(select);
+    return label;
+  }
+
+  function formulaireEdition(t) {
+    const form = el("form", "edition");
+    form.autocomplete = "off";
+    form.append(
+      champTexte("titre", "Titre", t.titre, 150),
+      champTexte("auteur", "Auteur·ice (ou réalisateur·ice)", t.auteur, 100),
+      champTexte("personnages", "Personnage(s)", t.personnages, 150)
+    );
+    const [formatNom, formatLibelle, formatValeurs] = CHAMPS_LISTES[0];
+    form.appendChild(champListe(formatNom, formatLibelle, formatValeurs(), t[formatNom])); // pleine largeur : « Pièce de théâtre » est long
+    const grille = el("div", "grille2");
+    for (const [nom, libelle, valeurs] of CHAMPS_LISTES.slice(1)) grille.appendChild(champListe(nom, libelle, valeurs(), t[nom]));
+    const duree = champTexte("duree", "Durée (minutes)", t.duree, 6);
+    duree.firstElementChild.type = "number";
+    duree.firstElementChild.min = "1";
+    duree.firstElementChild.max = "60";
+    duree.firstElementChild.step = "any";
+    duree.firstElementChild.inputMode = "decimal";
+    grille.appendChild(duree);
+    form.appendChild(grille);
+
+    const statut = el("p", "admin-erreur");
+    statut.setAttribute("role", "alert");
+    const actions = el("div", "actions");
+    const annuler = el("button", "secondaire", "Annuler");
+    annuler.type = "button";
+    annuler.addEventListener("click", () => { enEdition = null; form.remove(); });
+    const enregistrer = el("button", "principal", "Enregistrer");
+    enregistrer.type = "submit";
+    actions.append(annuler, enregistrer);
+    form.append(statut, actions);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      enregistrer.disabled = true;
+      statut.textContent = "";
+      const champs = {};
+      for (const nom of ["titre", "auteur", "personnages", "format", "echeance", "type", "siecle", "registre", "duree"]) champs[nom] = form.elements[nom].value.trim();
+      try {
+        const j = await appeler("admin_modifier", { id: t.id, champs });
+        Object.assign(t, j.champs);
+        enEdition = null;
+        afficher();
+      } catch (err) {
+        if (err instanceof ErreurCode) montrerConnexion("Code refusé : reconnecte-toi.");
+        else statut.textContent = err.message;
+        enregistrer.disabled = false;
+      }
+    });
+    return form;
   }
 
   // Suppression définitive : un second appui est nécessaire.

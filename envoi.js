@@ -119,6 +119,13 @@ async function envoyer(e) {
     return;
   }
 
+  // Déjà dans le catalogue ? On évite l'aller-retour (le serveur vérifie aussi, y compris les textes en attente).
+  const cle = normaliser(`${champs.titre.value}|${champs.auteur.value}|${champs.personnages.value}`);
+  if (textes.some((t) => cleTexte(t) === cle)) {
+    statut("Ce texte est déjà dans le catalogue. Cherche-le avec la barre de recherche.", true);
+    return;
+  }
+
   const donnees = {};
   for (const nom of ["prenom", "format", "titre", "auteur", "personnages", "echeance", "type", "siecle", "registre", "duree", "lien", "code", "site"]) {
     donnees[nom] = champs[nom].value.trim();
@@ -134,11 +141,12 @@ async function envoyer(e) {
       statut(resultat.erreur || "Envoi impossible. Réessaie plus tard.", true);
       return;
     }
+    if (typeof Propositions !== "undefined") Propositions.ajouter({ id: resultat.id, titre: donnees.titre, publie: resultat.publie });
 
     // Le code a été accepté : on le garde, ainsi que l'échéance, pour ne pas les retaper la prochaine fois.
     ecrireMemoire(CLE_CODE, donnees.code);
     ecrireMemoire(CLE_ECHEANCE, donnees.echeance);
-    statut("Merci ! Ton texte apparaîtra après validation.");
+    statut(resultat.publie ? "Merci ! Ton texte est publié." : "Merci ! Ton texte apparaîtra après validation.");
     elForm.reset();
     effacerAuto();
     infoAuto("");

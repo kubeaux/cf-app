@@ -50,9 +50,11 @@ function doPost(e) {
       case "lire": return reponse_(lire_(d));
       case "pdf": return reponse_(pdf_(d));
       case "proposer": return reponse_(proposer_(d));
+      case "mes": return reponse_(mes_(d));
       case "admin_liste": return reponse_(adminListe_(d));
       case "admin_decision": return reponse_(adminDecision_(d));
       case "admin_mode": return reponse_(adminMode_(d));
+      case "admin_modifier": return reponse_(adminModifier_(d));
       default: return reponse_({ ok: false, erreur: "Action inconnue." });
     }
   } catch (err) {
@@ -164,25 +166,39 @@ function pdf_(d) {
   return { ok: true, nom: fichier.getName(), donnees: Utilities.base64Encode(blob.getBytes()) };
 }
 
+const LIMITES = { format: 40, titre: 150, auteur: 100, personnages: 150, echeance: 40, type: 40, siecle: 10, registre: 40 };
+
+// Vérifie et nettoie les champs d'un texte (proposition ou modification). Renvoie { f } ou { erreur }.
+function champs_(d) {
+  const f = {};
+  for (const champ of Object.keys(LIMITES)) f[champ] = texte_(d[champ], LIMITES[champ]);
+  f.duree = texte_(d.duree, 6).replace(",", ".");
+
+  for (const champ of ["titre", "auteur", "personnages"]) {
+    if (!f[champ]) return { erreur: "Il manque un champ obligatoire." };
+  }
+  for (const champ of Object.keys(LISTES)) {
+    if (LISTES[champ].indexOf(f[champ]) < 0) return { erreur: "Une des listes n'est pas remplie." };
+  }
+  const minutes = Number(f.duree);
+  if (!(minutes >= 1 && minutes <= 60)) return { erreur: "La durée doit être entre 1 et 60 minutes." };
+  return { f };
+}
+
+// Deux propositions sont les mêmes si titre, auteur et personnages sont identiques (accents et majuscules ignorés).
+const cleDoublon_ = (l) => [l.titre, l.auteur, l.personnages].map(norm_).join("|");
+
 function proposer_(d) {
   // Le champ piège est invisible : seul un robot le remplit. On répond « ok » sans rien enregistrer.
   if (d.site) return { ok: true };
   if (!estClasse_(d.code)) return refus_;
 
-  const f = {};
-  const limites = { format: 40, titre: 150, auteur: 100, personnages: 150, echeance: 40, type: 40, siecle: 10, registre: 40, prenom: 40 };
-  for (const champ of Object.keys(limites)) f[champ] = texte_(d[champ], limites[champ]);
-  f.duree = texte_(d.duree, 6).replace(",", ".");
+  const verifie = champs_(d);
+  if (verifie.erreur) return { ok: false, erreur: verifie.erreur };
+  const f = verifie.f;
+  f.prenom = texte_(d.prenom, 40);
   f.lien = texte_(d.lien, 500);
-
-  for (const champ of ["titre", "auteur", "personnages", "prenom"]) {
-    if (!f[champ]) return { ok: false, erreur: "Il manque un champ obligatoire." };
-  }
-  for (const champ of Object.keys(LISTES)) {
-    if (LISTES[champ].indexOf(f[champ]) < 0) return { ok: false, erreur: "Une des listes n'est pas remplie." };
-  }
-  const minutes = Number(f.duree);
-  if (!(minutes >= 1 && minutes <= 60)) return { ok: false, erreur: "La durée doit être entre 1 et 60 minutes." };
+  if (!f.prenom) return { ok: false, erreur: "Il manque un champ obligatoire." };
 
   let octets = null;
   if (d.pdf && d.pdf.donnees) {
@@ -195,6 +211,16 @@ function proposer_(d) {
   }
 
   return avecVerrou_(() => {
+    const t = ouvrir_();
+    const cle = cleDoublon_(f);
+    const existant = lignes_(t).find((l) => l.titre && statut_(l) !== "refuse" && cleDoublon_(l) === cle);
+    if (existant) {
+      return {
+        ok: false, doublon: true,
+        erreur: statut_(existant) === "valide" ? "Ce texte est déjà dans le catalogue." : "Ce texte a déjà été proposé : il attend sa validation."
+      };
+    }
+
     if (octets) {
       const nom = texte_(d.pdf.nom, 120).replace(/[\\/:*?"<>|]/g, "-").replace(/\.pdf$/i, "") || f.titre;
       const blob = Utilities.newBlob(octets, "application/pdf", nom + ".pdf");
@@ -205,7 +231,6 @@ function proposer_(d) {
     f.id = Utilities.getUuid().slice(0, 8);
     f.date = new Date().toISOString();
 
-    const t = ouvrir_();
     const nbCol = t.feuille.getLastColumn();
     const ligne = new Array(nbCol).fill("");
     for (const [champ] of COLONNES) ligne[t.col[champ] - 1] = f[champ] == null ? "" : f[champ];
@@ -215,8 +240,18 @@ function proposer_(d) {
     const cible = t.feuille.getRange(numero, 1, 1, nbCol);
     cible.setNumberFormat("@");
     cible.setValues([ligne]);
-    return { ok: true };
+    return { ok: true, id: f.id, publie: f.valide === "oui" };
   });
+}
+
+// « Mes propositions » : l'appli envoie les identifiants qu'elle a reçus à l'envoi, le serveur répond avec leur état.
+function mes_(d) {
+  if (!estClasse_(d.code)) return refus_;
+  const ids = (Array.isArray(d.ids) ? d.ids : []).map(String).slice(0, 50);
+  const t = ouvrir_();
+  const parId = {};
+  for (const l of lignes_(t)) if (l.id) parId[l.id] = l;
+  return { ok: true, textes: ids.map((id) => (parId[id] ? { id, statut: statut_(parId[id]) } : { id, statut: "retire" })) };
 }
 
 function dossierPdf_() {
@@ -280,6 +315,24 @@ function mettreAuRebut_(lien) {
   } catch (err) {
     // Fichier déjà supprimé ou hors de portée : la ligne part quand même.
   }
+}
+
+function adminModifier_(d) {
+  if (!estAdmin_(d.code)) return refus_;
+  const verifie = champs_(d.champs || {});
+  if (verifie.erreur) return { ok: false, erreur: verifie.erreur };
+
+  return avecVerrou_(() => {
+    const t = ouvrir_();
+    const l = lignes_(t).find((x) => x.id && x.id === String(d.id || ""));
+    if (!l) return { ok: false, erreur: "Texte introuvable (déjà supprimé ?)." };
+    for (const champ of Object.keys(verifie.f)) {
+      const cellule = t.feuille.getRange(l.ligne, t.col[champ]);
+      cellule.setNumberFormat("@");
+      cellule.setValue(verifie.f[champ]);
+    }
+    return { ok: true, champs: verifie.f };
+  });
 }
 
 function adminMode_(d) {

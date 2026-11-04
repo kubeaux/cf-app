@@ -820,3 +820,37 @@ dialog.lecteur {
 .carte-admin .lire { flex: 1 1 100%; border: 0; text-decoration: none; }
 .carte-admin .secondaire.danger { border-color: rgba(255, 138, 122, .45); color: var(--erreur); }
 .carte-admin .depuis { margin: 12px 0 0; color: var(--faible); font-size: .85rem; }
+
+/* ---------- Mes propositions ---------- */
+
+.propositions { display: grid; gap: 10px; margin: 6px 0 14px; padding: 0; list-style: none; }
+.proposition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--ligne);
+  border-radius: 20px;
+  background: var(--surface-2);
+}
+.proposition-titre { flex: 1 1 12rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.etat {
+  flex: none;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--doux);
+  font-size: .8rem;
+  font-weight: 600;
+}
+.etat-valide { background: rgba(120, 200, 140, .16); color: #9fe0b0; }
+.etat-refuse { background: rgba(255, 138, 122, .14); color: var(--erreur); }
+.etat.nouveau { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ---------- Modification dans l'admin ---------- */
+
+.edition { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--ligne); }
+.edition .champ { margin-bottom: 10px; }
+.edition .actions { margin-top: 6px; }

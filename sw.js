@@ -1,6 +1,6 @@
-const CACHE = "la-truculance-v10";
+const CACHE = "la-truculance-v11";
 const COQUILLE = [
-  "./", "index.html", "style.css", "script.js", "envoi.js", "identite.js", "installer.js", "lecteur.js", "demarrage.js", "extraction.js", "config.js",
+  "./", "index.html", "style.css", "script.js", "envoi.js", "identite.js", "installer.js", "lecteur.js", "propositions.js", "demarrage.js", "extraction.js", "config.js",
   "favicon.svg", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png",
   "fonts/instrument-serif-latin-400-normal.woff2",
   "fonts/instrument-serif-latin-400-italic.woff2",
