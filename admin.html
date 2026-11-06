@@ -46,21 +46,64 @@
 
     <!-- Tableau de bord -->
     <section id="tableau" hidden>
-      <div id="auto-carte" class="auto-carte">
-        <div>
-          <h2>Autopilote</h2>
-          <p id="auto-texte"></p>
+      <div id="sections" class="admin-onglets" role="tablist"></div>
+
+      <div id="panneau-textes">
+        <div id="auto-carte" class="auto-carte">
+          <div>
+            <h2>Autopilote</h2>
+            <p id="auto-texte"></p>
+          </div>
+          <button id="auto-interrupteur" class="interrupteur" type="button" role="switch" aria-checked="false" aria-label="Autopilote"></button>
         </div>
-        <button id="auto-interrupteur" class="interrupteur" type="button" role="switch" aria-checked="false" aria-label="Autopilote"></button>
+
+        <div id="onglets" class="admin-onglets" role="tablist"></div>
+        <div class="admin-barre">
+          <p id="compteur" aria-live="polite"></p>
+          <button id="actualiser" class="lien" type="button">Actualiser</button>
+        </div>
+        <p id="info" class="admin-info" role="status" hidden></p>
+        <section id="liste" class="liste"></section>
       </div>
 
-      <div id="onglets" class="admin-onglets" role="tablist"></div>
-      <div class="admin-barre">
-        <p id="compteur" aria-live="polite"></p>
-        <button id="actualiser" class="lien" type="button">Actualiser</button>
+      <!-- Échéance : ordre de passage -->
+      <div id="panneau-echeance" hidden>
+        <article class="carte ech-bloc">
+          <p class="kicker">1 · Sheet de la classe</p>
+          <form id="form-sheet">
+            <label class="champ">Lien du Google Sheet de l’échéance
+              <input id="ech-url" type="url" required placeholder="https://docs.google.com/spreadsheets/d/…" autocomplete="off" spellcheck="false">
+            </label>
+            <button type="submit" class="principal">Enregistrer le lien</button>
+          </form>
+          <p id="ech-etat" class="droits"></p>
+        </article>
+
+        <article class="carte ech-bloc" id="ech-bloc-prof" hidden>
+          <p class="kicker">2 · Liste du prof</p>
+          <form id="form-prof">
+            <label class="champ">Colle la liste telle quelle (« DISCOURS » puis « 1. Prénom NOM - Texte »)
+              <textarea id="ech-prof" rows="8" spellcheck="false"></textarea>
+            </label>
+            <button type="submit" class="principal">Importer la liste</button>
+          </form>
+          <p id="ech-prof-etat" class="droits"></p>
+        </article>
+
+        <article class="carte ech-bloc" id="ech-rapprocher" hidden>
+          <p class="kicker">À rapprocher</p>
+          <p class="droits">Ces noms du Sheet ne correspondent pas clairement à la liste du prof. Choisis la bonne personne.</p>
+          <div id="ech-rapprocher-liste"></div>
+        </article>
+
+        <article class="carte ech-bloc" id="ech-absents" hidden>
+          <p class="kicker">Dans la liste du prof, pas dans le Sheet</p>
+          <ul id="ech-absents-liste" class="materiel"></ul>
+        </article>
+
+        <p id="ech-info" class="admin-info" role="status" hidden></p>
+        <p class="droits"><a class="lien" href="echeance.html">Voir la page des élèves</a></p>
       </div>
-      <p id="info" class="admin-info" role="status" hidden></p>
-      <section id="liste" class="liste"></section>
     </section>
   </main>
 

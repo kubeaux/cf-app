@@ -398,6 +398,112 @@
     }
   });
 
+  /* ---------- Échéance ---------- */
+
+  const elSections = document.getElementById("sections");
+  const elPanneauTextes = document.getElementById("panneau-textes");
+  const elPanneauEcheance = document.getElementById("panneau-echeance");
+  const elEchInfo = document.getElementById("ech-info");
+  let section = "textes";
+
+  function afficherSections() {
+    elSections.replaceChildren(...[["textes", "Textes"], ["echeance", "Échéance"]].map(([cle, libelle]) => {
+      const b = el("button", cle === section ? "chip actif" : "chip", libelle);
+      b.type = "button";
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", String(cle === section));
+      b.addEventListener("click", () => {
+        section = cle;
+        afficherSections();
+        elPanneauTextes.hidden = cle !== "textes";
+        elPanneauEcheance.hidden = cle !== "echeance";
+        if (cle === "echeance") chargerEcheance();
+      });
+      return b;
+    }));
+  }
+
+  function infoEcheance(texte, erreur = false) {
+    elEchInfo.textContent = texte;
+    elEchInfo.classList.toggle("erreur", erreur);
+    elEchInfo.hidden = !texte;
+  }
+
+  // Appel + affichage ; une erreur (Sheet inaccessible, liste illisible…) s'affiche sans rien casser.
+  async function actionEcheance(action, donnees) {
+    infoEcheance("");
+    try {
+      afficherEcheance(await appeler(action, donnees));
+      return true;
+    } catch (e) {
+      if (e instanceof ErreurCode) montrerConnexion("Code refusé : reconnecte-toi.");
+      else infoEcheance(e.message, true);
+      return false;
+    }
+  }
+  const chargerEcheance = () => actionEcheance("admin_passages");
+
+  function afficherEcheance(j) {
+    const etat = document.getElementById("ech-etat");
+    document.getElementById("ech-bloc-prof").hidden = !j.configure;
+    if (!j.configure) {
+      etat.textContent = "Aucun Sheet relié pour l’instant. Colle le lien du Sheet de la classe (partagé avec le lien).";
+      document.getElementById("ech-rapprocher").hidden = true;
+      document.getElementById("ech-absents").hidden = true;
+      return;
+    }
+    etat.textContent = `Relié : « ${j.titre} » — ${j.onglets.map((o) => `${o.nom} : ${o.nb} passage${o.nb > 1 ? "s" : ""}`).join(", ")}.`;
+    document.getElementById("ech-prof-etat").textContent = j.profCount
+      ? `${j.profCount} lignes dans la liste du prof.`
+      : "Pas encore de liste : les noms s’affichent comme dans le Sheet, sans le texte joué.";
+
+    const blocRap = document.getElementById("ech-rapprocher");
+    blocRap.hidden = j.aRapprocher.length === 0;
+    document.getElementById("ech-rapprocher-liste").replaceChildren(...j.aRapprocher.map((r) => {
+      const ligne = el("div", "ech-ligne");
+      ligne.appendChild(el("p", "", `${r.groupe} · n°${r.ordre} · « ${r.comedien} » (${r.raison === "ambigu" ? "plusieurs possibles" : "nom inconnu"})`));
+      const select = el("select");
+      select.setAttribute("aria-label", `Qui est « ${r.comedien} » ?`);
+      select.appendChild(new Option("Choisir la personne…", "", true, true));
+      select.options[0].disabled = true;
+      for (const nom of r.candidats) select.appendChild(new Option(nom, nom));
+      select.addEventListener("change", () => actionEcheance("admin_passages_alias", { cle: r.cle, nom: select.value }));
+      ligne.appendChild(select);
+      return ligne;
+    }));
+
+    const blocAbs = document.getElementById("ech-absents");
+    blocAbs.hidden = j.absents.length === 0;
+    document.getElementById("ech-absents-liste").replaceChildren(...j.absents.map((a) => {
+      const li = el("li");
+      li.append(el("b", "", a.nom), el("span", "", a.texte), el("small", "", a.groupe));
+      return li;
+    }));
+  }
+
+  document.getElementById("form-sheet").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const bouton = e.target.querySelector("button");
+    bouton.disabled = true;
+    if (await actionEcheance("admin_passages_sheet", { url: document.getElementById("ech-url").value.trim() })) {
+      document.getElementById("ech-url").value = "";
+      infoEcheance("Lien enregistré. Si c’est une nouvelle échéance, colle maintenant la liste du prof.");
+    }
+    bouton.disabled = false;
+  });
+  document.getElementById("form-prof").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const bouton = e.target.querySelector("button");
+    bouton.disabled = true;
+    if (await actionEcheance("admin_passages_prof", { texte: document.getElementById("ech-prof").value })) {
+      document.getElementById("ech-prof").value = "";
+      infoEcheance("Liste importée.");
+    }
+    bouton.disabled = false;
+  });
+
+  afficherSections();
+
   /* ---------- Démarrage ---------- */
 
   if (!CONFIG.LIEN_CSV && !CONFIG.LIEN_ENVOI) {

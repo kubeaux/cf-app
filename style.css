@@ -854,3 +854,67 @@ dialog.lecteur {
 .edition { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--ligne); }
 .edition .champ { margin-bottom: 10px; }
 .edition .actions { margin-top: 6px; }
+
+/* ---------- Échéance ---------- */
+
+.haut-droite { display: flex; align-items: center; gap: 10px; }
+a.chip { color: var(--texte); text-decoration: none; }
+.echeance-titre { margin: 10px 0 0; color: var(--faible); font-size: .9rem; }
+
+.passage-tete { display: flex; align-items: center; gap: 16px; }
+.passage-num {
+  flex: none;
+  min-width: 2.2ch;
+  color: var(--accent);
+  font: 400 2.6rem/1 var(--serif);
+  text-align: center;
+}
+.passage-qui { flex: 1; min-width: 0; }
+.passage-qui h2 { margin: 0; font: 400 1.7rem/1.05 var(--serif); overflow-wrap: anywhere; }
+.passage-qui .auteur { margin: 4px 0 0; }
+.carte.passage .etiquette { margin-top: 16px; }
+.carte .detail { margin: 2px 0 0; color: var(--texte); white-space: pre-line; overflow-wrap: anywhere; }
+.carte.moi { border-color: rgba(255, 90, 44, .55); }
+
+.moi-carte { margin-bottom: 18px; border-color: rgba(255, 90, 44, .45); }
+.mon-passage { padding: 14px 0 4px; }
+.mon-passage + .mon-passage { border-top: 1px solid var(--ligne); }
+.mon-num { margin: 0 0 4px; font: 400 1.5rem/1.1 var(--serif); }
+
+.materiel { display: grid; gap: 14px; margin: 16px 0 0; padding: 0; list-style: none; }
+.materiel li { display: grid; gap: 2px; padding-bottom: 14px; border-bottom: 1px solid var(--ligne); }
+.materiel li:last-child { padding-bottom: 0; border-bottom: 0; }
+.materiel li.moi b { color: var(--accent); }
+.materiel span { overflow-wrap: anywhere; }
+.materiel small { color: var(--faible); }
+
+/* ---------- Admin : échéance ---------- */
+
+.champ textarea {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 13px 15px;
+  border: 1px solid var(--ligne-forte);
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--texte);
+  font-size: 16px;
+  line-height: 1.4;
+  resize: vertical;
+}
+.champ textarea:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(255, 90, 44, .16); }
+.ech-bloc { margin-bottom: 14px; }
+.ech-bloc .principal { width: 100%; }
+.ech-ligne { padding: 12px 0; border-top: 1px solid var(--ligne); }
+.ech-ligne p { margin: 0 0 8px; overflow-wrap: anywhere; }
+.ech-ligne select {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--ligne-forte);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--texte);
+  font-size: 16px;
+}

@@ -4,6 +4,7 @@
 //   CODE_CLASSE : le code que tapent les élèves
 //   CODE_ADMIN  : ton code à toi pour la page admin (long, différent du code de la classe)
 //   MODE_AUTO   : « oui » = les propositions sont publiées sans validation (se règle depuis la page admin)
+// Les réglages de l'échéance (PASSAGES_SHEET_ID, PASSAGES_PROF, PASSAGES_ALIAS) se font depuis la page admin.
 //
 // Déploiement : Déployer > Gérer les déploiements > crayon > Version : « Nouvelle version » > Déployer.
 // L'adresse /exec ne change pas, donc config.js non plus.
@@ -51,10 +52,15 @@ function doPost(e) {
       case "pdf": return reponse_(pdf_(d));
       case "proposer": return reponse_(proposer_(d));
       case "mes": return reponse_(mes_(d));
+      case "passages": return reponse_(passages_(d));
       case "admin_liste": return reponse_(adminListe_(d));
       case "admin_decision": return reponse_(adminDecision_(d));
       case "admin_mode": return reponse_(adminMode_(d));
       case "admin_modifier": return reponse_(adminModifier_(d));
+      case "admin_passages": return reponse_(adminPassages_(d));
+      case "admin_passages_sheet": return reponse_(adminPassagesSheet_(d));
+      case "admin_passages_prof": return reponse_(adminPassagesProf_(d));
+      case "admin_passages_alias": return reponse_(adminPassagesAlias_(d));
       default: return reponse_({ ok: false, erreur: "Action inconnue." });
     }
   } catch (err) {
@@ -339,4 +345,255 @@ function adminMode_(d) {
   if (!estAdmin_(d.code)) return refus_;
   PropertiesService.getScriptProperties().setProperty("MODE_AUTO", d.auto ? "oui" : "non");
   return { ok: true, auto: modeAuto_() };
+}
+
+
+/* ---------- Échéance : ordre de passage ---------- */
+// Source de l'ordre : le Google Sheet de la classe (lu en direct, jamais copié). La liste du prof (collée dans l'admin)
+// apporte les noms complets et le texte joué par chacun. Les deux sont rapprochés par le prénom.
+
+const CACHE_PASSAGES = "passages_brut";
+const VIDES_ = ["", "/", "-", "x", "aucun", "aucune", "rien", "non", "ras", "n/a", "neant"];
+const vide_ = (v) => VIDES_.indexOf(norm_(v).replace(/[.–—]/g, "")) >= 0;
+const coupe_ = (v, max) => texte_(v, max);
+
+const idSheet_ = (url) => {
+  const m = String(url || "").match(/\/d\/([\w-]{20,})/) || String(url || "").trim().match(/^([\w-]{20,})$/);
+  return m ? m[1] : "";
+};
+
+// Cherche la ligne d'en-tête (« Ordre de passage », « Comédien »…) dans les premières lignes d'un onglet.
+function reperer_(v) {
+  for (let i = 0; i < Math.min(v.length, 6); i++) {
+    const n = v[i].map(norm_);
+    const iOrdre = n.findIndex((x) => x.indexOf("ordre") === 0);
+    const iCom = n.findIndex((x) => x.indexOf("comedien") === 0);
+    if (iOrdre < 0 || iCom < 0) continue;
+    const premier = (debut) => n.findIndex((x) => x.indexOf(debut) === 0);
+    return {
+      ligne: i, ordre: iOrdre, comedien: iCom, materiel: premier("materiel"), mise: premier("mise en scene"), texte: premier("texte"),
+      regisseurs: n.map((x, j) => (x.indexOf("regisseur") === 0 ? j : -1)).filter((j) => j >= 0)
+    };
+  }
+  return null;
+}
+
+// Lit le Sheet de la classe : { titre, groupes: [{ nom, lignes: [...] }] }. Gardé 60 s en cache (les élèves rechargent souvent).
+function lireSheetClasse_(frais) {
+  const id = prop_("PASSAGES_SHEET_ID");
+  if (!id) return null;
+  const cache = CacheService.getScriptCache();
+  if (!frais) {
+    const garde = cache.get(CACHE_PASSAGES);
+    if (garde) return JSON.parse(garde);
+  }
+  const ss = SpreadsheetApp.openById(id);
+  const groupes = [];
+  for (const feuille of ss.getSheets()) {
+    const v = feuille.getDataRange().getDisplayValues();
+    const c = reperer_(v);
+    if (!c) continue;
+    const cell = (l, j) => (j >= 0 && l[j] != null ? coupe_(l[j], 400) : "");
+    const lignes = [];
+    for (const l of v.slice(c.ligne + 1, c.ligne + 301)) {
+      if (!cell(l, c.comedien)) continue;
+      lignes.push({
+        ordre: cell(l, c.ordre), comedien: cell(l, c.comedien), materiel: cell(l, c.materiel), mise: cell(l, c.mise),
+        texte: cell(l, c.texte), regisseurs: c.regisseurs.map((j) => cell(l, j)).filter((x) => x && !vide_(x))
+      });
+    }
+    groupes.push({ nom: coupe_(feuille.getName(), 60), lignes });
+  }
+  const brut = { titre: coupe_(ss.getName(), 120), groupes };
+  try { cache.put(CACHE_PASSAGES, JSON.stringify(brut), 60); } catch (err) { /* trop gros pour le cache : on relira */ }
+  return brut;
+}
+
+// « Laure CAVAT » -> { prenom: "Laure", nom: "CAVAT" } : le nom de famille = les mots finaux tout en majuscules.
+function separerNom_(s) {
+  const mots = String(s).trim().split(/\s+/).filter(Boolean);
+  const maj = (m) => m.length > 1 && m === m.toUpperCase() && m !== m.toLowerCase();
+  let i = mots.length;
+  while (i > 1 && maj(mots[i - 1])) i--;
+  return { prenom: mots.slice(0, i).join(" "), nom: mots.slice(i).join(" ") };
+}
+
+// Lit la liste du prof : titres de section (« DISCOURS ») puis lignes « 1. Prénom NOM - Texte ».
+function lireListeProf_(texte) {
+  const entrees = [];
+  let groupe = "";
+  for (const brute of String(texte).split(/\r?\n/)) {
+    const ligne = brute.trim();
+    if (!ligne) continue;
+    const m = ligne.match(/^(\d+)\s*[.)]\s*(.+?)\s+[-–—]\s+(.+)$/);
+    if (m) {
+      if (!groupe) continue;
+      const { prenom, nom } = separerNom_(m[2]);
+      entrees.push({ g: groupe, ordre: Number(m[1]), prenom: coupe_(prenom, 40), nom: coupe_(nom, 40), texte: coupe_(m[3], 150) });
+    } else if (!/\d/.test(ligne) && ligne === ligne.toUpperCase() && ligne !== ligne.toLowerCase() && ligne.length < 40) {
+      groupe = ligne.charAt(0) + ligne.slice(1).toLowerCase();
+    }
+  }
+  return entrees;
+}
+
+const complet_ = (p) => (p.prenom + " " + p.nom).trim();
+const cleProf_ = (p) => norm_(complet_(p));
+const lireJson_ = (nom, defaut) => { try { return JSON.parse(prop_(nom)) || defaut; } catch (err) { return defaut; } };
+
+// Rapproche chaque ligne du Sheet d'une entrée de la liste du prof. Renvoie les lignes enrichies + ce qu'il reste à régler.
+function fusionner_(brut) {
+  const prof = lireJson_("PASSAGES_PROF", []);
+  const alias = lireJson_("PASSAGES_ALIAS", {});
+  const reclame = {};
+  const aRapprocher = [];
+
+  // Deux élèves portent le même prénom : leur nom s'affichera avec l'initiale (« Laure C. »).
+  const compte = {};
+  const vus = {};
+  for (const p of prof) { if (!vus[cleProf_(p)]) { vus[cleProf_(p)] = 1; compte[norm_(p.prenom)] = (compte[norm_(p.prenom)] || 0) + 1; } }
+  const affiche = (p) => (compte[norm_(p.prenom)] > 1 && p.nom ? p.prenom + " " + p.nom.charAt(0) + "." : p.prenom);
+
+  const groupes = brut.groupes.map((g) => ({ nom: g.nom, cle: norm_(g.nom), lignes: g.lignes.map((l) => ({ ...l })) }));
+  // Clé d'une ligne pour retenir un rapprochement : groupe|comédien, et le numéro de passage si le même prénom revient dans l'onglet.
+  for (const g of groupes) {
+    const nb = {};
+    for (const l of g.lignes) nb[norm_(l.comedien)] = (nb[norm_(l.comedien)] || 0) + 1;
+    for (const l of g.lignes) l._cle = g.cle + "|" + norm_(l.comedien) + (nb[norm_(l.comedien)] > 1 ? "|" + norm_(l.ordre) : "");
+  }
+
+  // Passe 1 : les correspondances sûres.
+  for (const g of groupes) {
+    const dansGroupe = prof.filter((p) => norm_(p.g) === g.cle);
+    for (const l of g.lignes) {
+      const nc = norm_(l.comedien);
+      let trouve = null;
+      const aliase = alias[l._cle];
+      if (aliase) trouve = dansGroupe.find((p) => cleProf_(p) === aliase) || null;
+      if (!trouve) {
+        const { prenom, nom } = separerNom_(l.comedien);
+        const initiale = nc.match(/^(.*\S)\s+([a-z])\.?$/); // « Laure C. »
+        let candidats = dansGroupe.filter((p) => norm_(p.prenom) === norm_(prenom));
+        if (candidats.length > 1 && nom) candidats = candidats.filter((p) => norm_(p.nom) === norm_(nom));
+        if (candidats.length === 0 && initiale) candidats = dansGroupe.filter((p) => norm_(p.prenom) === initiale[1] && norm_(p.nom).charAt(0) === initiale[2]);
+        if (candidats.length > 1 && initiale) candidats = candidats.filter((p) => norm_(p.nom).charAt(0) === initiale[2]);
+        if (candidats.length === 1) trouve = candidats[0];
+        else l._candidats = candidats; // plusieurs possibles
+      }
+      if (trouve) { l._prof = trouve; reclame[g.cle + "|" + cleProf_(trouve)] = true; }
+    }
+  }
+
+  // Passe 2 : ce qu'il reste. Un prénom ambigu propose ses homonymes ; un inconnu propose les noms de la liste non encore attribués.
+  for (const g of groupes) {
+    const libres = prof.filter((p) => norm_(p.g) === g.cle && !reclame[g.cle + "|" + cleProf_(p)]);
+    for (const l of g.lignes) {
+      if (l._prof) continue;
+      const ambigu = Boolean(l._candidats && l._candidats.length);
+      if (prof.length) aRapprocher.push({ cle: l._cle, groupe: g.nom, comedien: l.comedien, ordre: l.ordre, raison: ambigu ? "ambigu" : "inconnu", candidats: (ambigu ? l._candidats : libres).map(complet_) });
+    }
+  }
+  const absents = [];
+  for (const g of groupes) {
+    for (const p of prof.filter((x) => norm_(x.g) === g.cle && !reclame[g.cle + "|" + cleProf_(x)])) absents.push({ groupe: g.nom, nom: complet_(p), texte: p.texte });
+  }
+
+  const sortie = groupes.map((g) => ({
+    nom: g.nom,
+    lignes: g.lignes.map((l) => {
+      const p = l._prof;
+      return {
+        ordre: l.ordre,
+        nom: p ? affiche(p) : l.comedien,
+        personne: p ? cleProf_(p) : "~" + norm_(l.comedien),
+        texte: l.texte || (p ? p.texte : ""),
+        materiel: vide_(l.materiel) ? "" : l.materiel,
+        mise: vide_(l.mise) ? "" : l.mise,
+        regisseurs: l.regisseurs
+      };
+    })
+  }));
+  return { groupes: sortie, aRapprocher, absents, profCount: prof.length };
+}
+
+function passages_(d) {
+  if (!estClasse_(d.code)) return refus_;
+  const brut = lireSheetClasse_(false);
+  if (!brut) return { ok: true, vide: true };
+  const f = fusionner_(brut);
+  return { ok: true, titre: brut.titre, groupes: f.groupes };
+}
+
+/* ---------- Échéance : admin ---------- */
+
+function etatPassages_(frais) {
+  const brut = lireSheetClasse_(frais);
+  if (!brut) return { ok: true, configure: false };
+  const f = fusionner_(brut);
+  return {
+    ok: true, configure: true, titre: brut.titre,
+    onglets: brut.groupes.map((g) => ({ nom: g.nom, nb: g.lignes.length })),
+    profCount: f.profCount, aRapprocher: f.aRapprocher, absents: f.absents
+  };
+}
+
+function adminPassages_(d) {
+  if (!estAdmin_(d.code)) return refus_;
+  try {
+    return etatPassages_(true);
+  } catch (err) {
+    return { ok: false, erreur: "Impossible de lire le Google Sheet de l'échéance. Vérifie qu'il est partagé avec le lien." };
+  }
+}
+
+function adminPassagesSheet_(d) {
+  if (!estAdmin_(d.code)) return refus_;
+  const id = idSheet_(d.url);
+  if (!id) return { ok: false, erreur: "Ce lien n'est pas celui d'un Google Sheet." };
+  let ss;
+  try { ss = SpreadsheetApp.openById(id); } catch (err) {
+    return { ok: false, erreur: "Impossible d'ouvrir ce Google Sheet. Il doit être partagé « Tous les utilisateurs disposant du lien » (ou avec ton compte)." };
+  }
+  const onglets = ss.getSheets().filter((f) => reperer_(f.getDataRange().getDisplayValues()));
+  if (!onglets.length) return { ok: false, erreur: "Aucun onglet n'a les colonnes « Ordre de passage » et « Comédien »." };
+
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty("PASSAGES_SHEET_ID") !== id) {
+    // Nouvelle échéance : l'ancienne liste du prof et les rapprochements ne valent plus.
+    props.deleteProperty("PASSAGES_PROF");
+    props.deleteProperty("PASSAGES_ALIAS");
+  }
+  props.setProperty("PASSAGES_SHEET_ID", id);
+  CacheService.getScriptCache().remove(CACHE_PASSAGES);
+  return etatPassages_(true);
+}
+
+function adminPassagesProf_(d) {
+  if (!estAdmin_(d.code)) return refus_;
+  const entrees = lireListeProf_(d.texte);
+  if (!entrees.length) return { ok: false, erreur: "Je n'ai reconnu aucune ligne. Colle la liste telle quelle : « DISCOURS » puis « 1. Prénom NOM - Texte »." };
+  const json = JSON.stringify(entrees);
+  if (json.length > 8500) return { ok: false, erreur: "La liste est trop longue (maximum environ 90 lignes)." };
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty("PASSAGES_PROF", json);
+  props.deleteProperty("PASSAGES_ALIAS");
+  return etatPassages_(false);
+}
+
+function adminPassagesAlias_(d) {
+  if (!estAdmin_(d.code)) return refus_;
+  const cleLigne = String(d.cle || "");
+  const groupe = cleLigne.split("|")[0];
+  if (!groupe || cleLigne.length > 200) return { ok: false, erreur: "Demande incomplète." };
+  const alias = lireJson_("PASSAGES_ALIAS", {});
+  const cle = norm_(d.nom);
+  if (cle) {
+    const existe = lireJson_("PASSAGES_PROF", []).some((p) => norm_(p.g) === groupe && cleProf_(p) === cle);
+    if (!existe) return { ok: false, erreur: "Ce nom n'est pas dans la liste du prof." };
+    alias[cleLigne] = cle;
+  } else {
+    delete alias[cleLigne];
+  }
+  PropertiesService.getScriptProperties().setProperty("PASSAGES_ALIAS", JSON.stringify(alias));
+  return etatPassages_(false);
 }
